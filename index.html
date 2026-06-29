@@ -411,6 +411,12 @@
         .part-buy:hover { background:var(--red-hi); }
         .part-buy svg { width:14px; height:14px; }
         .parts-empty { text-align:center; padding:2rem; color:var(--muted); font-size:.85rem; }
+        .part-models-tag { display:inline-block; font-family:var(--M); font-size:.54rem; letter-spacing:.08em; color:var(--red-hi); border:1px solid var(--red); border-radius:3px; padding:.12rem .4rem; margin-left:.5rem; vertical-align:middle; text-transform:uppercase; }
+        .part-view { font-family:var(--D); font-weight:700; font-size:.78rem; letter-spacing:.08em; text-transform:uppercase; background:transparent; color:var(--red-hi); border:1px solid var(--red); border-radius:4px; padding:.5rem 1rem; cursor:pointer; transition:background .2s,color .2s; flex-shrink:0; }
+        .part-view:hover { background:var(--red); color:#fff; }
+        .parts-back { display:inline-flex; align-items:center; gap:.4rem; background:none; border:none; color:var(--muted); font-family:var(--M); font-size:.72rem; letter-spacing:.04em; cursor:pointer; padding:.3rem 0 .9rem; transition:color .2s; }
+        .parts-back:hover { color:var(--white); }
+        .model-row .part-name { font-family:var(--M); font-size:.82rem; letter-spacing:.01em; }
         @media(max-width:560px){
             .part-row { flex-wrap:wrap; }
             .part-price { min-width:auto; text-align:left; }
@@ -866,7 +872,13 @@ const categories = [
       {name:'Fuel Pump',              price:90,  stripe:'#'},
       {name:'Throttle Body',          price:120, stripe:'#'},
       {name:'EGR Valve',              price:130, stripe:'#'},
-      {name:'Turbocharger',           price:380, stripe:'#'},
+      {name:'Turbocharger', price:380, models:[
+          {name:'AUDI A6 18-23 2.0 TDI 16V 150KW',        price:420, stripe:'#'},
+          {name:'BMW 320d F30 12-18 2.0 TD 135KW',        price:390, stripe:'#'},
+          {name:'VW GOLF VII 12-19 1.6 TDI 81KW',         price:340, stripe:'#'},
+          {name:'FIAT DOBLO 09-15 1.6 MJET 16V 77KW',     price:310, stripe:'#'},
+          {name:'MERCEDES C220 W204 07-14 2.1 CDI 125KW', price:400, stripe:'#'},
+      ]},
       {name:'Intercooler',            price:150, stripe:'#'},
       {name:'Power Steering Pump',    price:180, stripe:'#'},
       {name:'Gearbox (Manual)',        price:450, stripe:'#'},
@@ -987,30 +999,78 @@ function renderCategories() {
 
 /* ─── Parts modal ─── */
 const cartSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>';
+let currentCat = null;
 let currentParts = [];
 
+function buyHTML(item) {
+    const attrs = item.stripe !== '#' ? 'target="_blank" rel="noopener"' : 'onclick="return false" title="Coming soon"';
+    return `<a class="part-buy" href="${item.stripe}" ${attrs}>${cartSvg} Buy</a>`;
+}
+
 function partRowHTML(p, idx) {
-    const buyAttrs = p.stripe !== '#' ? 'target="_blank" rel="noopener"' : 'onclick="return false" title="Coming soon"';
+    // Parts with specific vehicle models open a sub-list instead of buying directly
+    if (p.models && p.models.length) {
+        const from = Math.min(...p.models.map(m => m.price));
+        return `
+        <div class="part-row" data-name="${p.name.toLowerCase()}">
+            <span class="part-num">${String(idx+1).padStart(2,'0')}</span>
+            <span class="part-name">${p.name}<span class="part-models-tag">${p.models.length} models</span></span>
+            <span class="part-price">from €${from}<small>excl. VAT</small></span>
+            <button class="part-view" onclick="showModels('${p.name.replace(/'/g,"\\'")}')">View &rarr;</button>
+        </div>`;
+    }
     return `
         <div class="part-row" data-name="${p.name.toLowerCase()}">
             <span class="part-num">${String(idx+1).padStart(2,'0')}</span>
             <span class="part-name">${p.name}<span class="part-tested">Tested</span></span>
             <span class="part-price">€${p.price}<small>excl. VAT</small></span>
-            <a class="part-buy" href="${p.stripe}" ${buyAttrs}>${cartSvg} Buy</a>
+            ${buyHTML(p)}
+        </div>`;
+}
+
+function modelRowHTML(m, idx) {
+    return `
+        <div class="part-row model-row">
+            <span class="part-num">${String(idx+1).padStart(2,'0')}</span>
+            <span class="part-name">${m.name}<span class="part-tested">Tested</span></span>
+            <span class="part-price">€${m.price}<small>excl. VAT</small></span>
+            ${buyHTML(m)}
         </div>`;
 }
 
 function openPartsModal(catId) {
     const cat = categories.find(c => c.id === catId);
     if (!cat) return;
+    currentCat = cat;
     currentParts = cat.parts;
     document.getElementById('partsTitle').textContent = cat.name;
     document.getElementById('partsBanner').style.backgroundImage = `url('${cat.img}')`;
     document.getElementById('partsSearch').value = '';
+    document.querySelector('.parts-search-wrap').style.display = '';
     document.getElementById('partsList').innerHTML = cat.parts.map(partRowHTML).join('');
     document.getElementById('partsModal').classList.add('open');
     document.body.style.overflow = 'hidden';
 }
+
+function showModels(partName) {
+    const part = currentCat.parts.find(p => p.name === partName);
+    if (!part || !part.models) return;
+    document.getElementById('partsTitle').textContent = part.name;
+    document.querySelector('.parts-search-wrap').style.display = 'none';
+    document.getElementById('partsList').innerHTML =
+        `<button class="parts-back" onclick="backToParts()">&larr; Back to ${currentCat.name}</button>`
+        + part.models.map(modelRowHTML).join('');
+    document.getElementById('partsList').scrollTop = 0;
+}
+
+function backToParts() {
+    document.getElementById('partsTitle').textContent = currentCat.name;
+    document.getElementById('partsSearch').value = '';
+    document.querySelector('.parts-search-wrap').style.display = '';
+    document.getElementById('partsList').innerHTML = currentCat.parts.map(partRowHTML).join('');
+    document.getElementById('partsList').scrollTop = 0;
+}
+
 function filterParts(q) {
     q = q.trim().toLowerCase();
     const matches = currentParts.filter(p => p.name.toLowerCase().includes(q));

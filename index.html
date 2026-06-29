@@ -975,6 +975,52 @@ const categories = [
     ]
   },
 ];
+
+/* ─── Vehicle reference pools (based on Bresolin's real catalogue) ───
+   Used to auto-generate model options per part. Real stock comes from
+   Bresolin; these are representative examples in their catalogue format. */
+const MECH_VEHICLES = [
+    'AUDI A6 18-23 2.0 TDI 16V 150KW',
+    'BMW S5 F10 10-17 3.0 TD 190KW',
+    'VW T-ROC 17-23 1.5 TSI 110KW',
+    'KIA PICANTO 12-17 1.2 16V 62KW',
+    'FIAT DOBLO 09-15 1.6 MJET 16V 77KW',
+    'MERCEDES C220 W204 07-14 2.1 CDI 125KW',
+    'FORD FOCUS III 11-18 1.6 TDCI 85KW',
+    'RENAULT MEGANE III 08-16 1.5 DCI 81KW',
+    'OPEL ASTRA J 09-15 1.7 CDTI 81KW',
+    'SMART 453 14-21 0.9 TB 66KW',
+];
+const BODY_VEHICLES = [
+    'FIAT PANDA 12-22',
+    'VW T-ROC 17-23',
+    'BMW SERIE 3 F30 12-18',
+    'AUDI A6 18-23',
+    'FORD FOCUS III 11-18',
+    'MERCEDES C-CLASS W204 07-14',
+    'RENAULT CLIO IV 12-19',
+    'OPEL ASTRA J 09-15',
+    'KIA PICANTO 12-17',
+    'SMART FORTWO 453 14-21',
+];
+const MECH_CATS = ['engine', 'suspension'];
+
+function genModels(part, catId) {
+    const pool = MECH_CATS.includes(catId) ? MECH_VEHICLES : BODY_VEHICLES;
+    const start = part.name.length % pool.length;
+    const deltas = [-0.1, 0, 0.08, 0.15];
+    return deltas.map((d, i) => ({
+        name: pool[(start + i * 3) % pool.length],
+        price: Math.round((part.price * (1 + d)) / 5) * 5,
+        stripe: '#'
+    }));
+}
+
+// Give every part vehicle-specific model options (keep any hand-curated ones)
+categories.forEach(cat => cat.parts.forEach(p => {
+    if (!p.models) p.models = genModels(p, cat.id);
+}));
+
 /* ─── Render category cards ─── */
 function renderCategories() {
     const grid = document.getElementById('catGrid');
